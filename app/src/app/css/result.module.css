@@ -1,0 +1,39 @@
+
+.body{
+    padding: 2rem;
+    border: 1px solid gray;
+    border-radius: 1rem;
+    margin: 2rem;
+    display: grid;
+    grid-template-columns: 100%;
+    align-content: space-between;
+    
+}
+
+.grid{
+    display: grid;
+    grid-template-columns: 48% 48%;
+ 
+    justify-content: space-between;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+
+}
+
+.Link{
+    color: gray;
+  }
+  
+
+.backbutton{
+    padding: 0.7rem 1.5rem;
+    border: 1px solid black;
+    border-radius: 1rem;
+    width: fit-content;
+
+}
+
+.footer{
+    margin: 1rem 0;
+}
+

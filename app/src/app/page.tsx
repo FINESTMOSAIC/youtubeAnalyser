@@ -38,7 +38,7 @@ export default function YouTubeSentimentAnalyzer() {
   }, []);
 
 
-  function calcPercentage(x, y, z) {
+  function calcPercentage(x: number, y: number, z: number): { x: string; y: string; z: string } {
     let sum = x + y + z;
     let x_percentage = (x / sum) * 100 || 0;
     let y_percentage = (y / sum) * 100 || 0;

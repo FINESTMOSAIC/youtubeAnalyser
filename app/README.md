@@ -44,3 +44,5 @@ npm install clsx
 npm install tailwind-merge
 
 npm install firebase
+
+npx puppeteer browsers install

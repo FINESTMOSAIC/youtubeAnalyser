@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { storeData, removeData, getData } from "../../utils/localstorage";
-import { useRouter } from "next/navigation";  // Import useRouter from next/router
-import styleHomePage from "./css/homePage.module.css"
+import { useRouter } from "next/navigation";
+import styleHomePage from "./css/homePage.module.css";
 import { ref, set, push } from "firebase/database";
 import { database } from "../../utils/firebase";
 
-// Define Sentiment type
 type Sentiment = {
   agree_count: number;
   disagree_count: number;
@@ -15,11 +14,17 @@ type Sentiment = {
 };
 
 export default function YouTubeSentimentAnalyzer() {
-  const router = useRouter(); // Initialize the router
-  const [isClient, setIsClient] = useState(false); // State to check if it's running client-side
+  const router = useRouter();
+  const [isClient, setIsClient] = useState(false);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [videoId, setVideoId] = useState(""); // To store the extracted video ID
+  const [comments, setComments] = useState([]);
+  const [sentiment, setSentiment] = useState<Sentiment | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    setIsClient(true); // Set to true once the component is mounted on the client
+    setIsClient(true);
   }, []);
 
   useEffect(() => {
@@ -30,15 +35,10 @@ export default function YouTubeSentimentAnalyzer() {
     removeData("disagree_percentages");
     removeData("netural_percentages");
     removeData("months");
-  }, []); // Empty dependency array to run it once when component mounts
+  }, []);
 
-  const [videoUrl, setVideoUrl] = useState("");
-  const [comments, setComments] = useState([]);
-  const [sentiment, setSentiment] = useState<Sentiment | null>(null); // Define sentiment type
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  function calcPercentage(x: number, y: number, z: number): { x: string; y: string; z: string } {
+  function calcPercentage(x, y, z) {
     let sum = x + y + z;
     let x_percentage = (x / sum) * 100 || 0;
     let y_percentage = (y / sum) * 100 || 0;
@@ -55,11 +55,35 @@ export default function YouTubeSentimentAnalyzer() {
     };
   }
 
+
+  const extractVideoId = (url: string): string | null => {
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.hostname === "www.youtube.com" || parsedUrl.hostname === "youtube.com") {
+        return parsedUrl.searchParams.get("v");
+      } else if (parsedUrl.hostname === "youtu.be") {
+        return parsedUrl.pathname.slice(1);
+      }
+      return null;
+    } catch (error) {
+      console.error("Invalid URL:", error);
+      return null;
+    }
+  };
+
   const handleScrapeComments = async () => {
     if (!videoUrl) {
       setError("Please enter a valid YouTube video URL.");
       return;
     }
+
+    const id = extractVideoId(videoUrl);
+    if (!id) {
+      setError("Invalid YouTube video URL.");
+      return;
+    }
+
+    setVideoId(id); // Store the extracted video ID
     storeData("url", videoUrl);
 
     setLoading(true);
@@ -68,66 +92,56 @@ export default function YouTubeSentimentAnalyzer() {
     setSentiment(null);
 
     try {
-      const response = await fetch(`./api/scrapeComments?videoUrl=${encodeURIComponent(videoUrl)}`);
+      const response = await fetch(`./api/utapi?videoId=${id}`);
       const data = await response.json();
 
       if (response.ok) {
         setComments(data.comments || []);
-        setSentiment(data.overall || null); // Ensure sentiment comes from the correct response field
+        setSentiment(data.overall || null);
+        console.log(data);
 
         storeData("agree", data.overall.agree_count);
         storeData("disagree", data.overall.disagree_count);
         storeData("netural", data.overall.neutral_count);
         storeData("months", data.total_comments_monthly);
-        console.log(getData("months"));
-        addData();
 
-        // Debugging
-        console.log(getData("agree"));
-        console.log(data.overall.agree_count);
+        addData(id, videoUrl, data.comments, data.overall);
+        router.push("/result");
 
-        // Client-side redirection only
         if (isClient && data.overall) {
-          router.push("/result"); // Redirect to '/newPage' or any other path
         }
       } else {
         setError(data.error || "Failed to fetch comments.");
       }
     } catch (err) {
       setError("An unexpected error occurred.");
+      router.push("/result");
     } finally {
       setLoading(false);
     }
   };
 
+
   const percentages = sentiment
     ? calcPercentage(sentiment.agree_count, sentiment.disagree_count, sentiment.neutral_count)
     : null;
 
-  // read and write in database
-  const addData = () => {
+  const addData = (id: string, url: string, comments: any[], overall: Sentiment) => {
     const dataRef = ref(database, "Anchor");
-
     const newEntryRef = push(dataRef);
 
     set(newEntryRef, {
-      Agree: sentiment?.agree_count,
-      Disagree: sentiment?.disagree_count,
-      Netural: sentiment?.neutral_count,
-      URL: videoUrl,
+      VideoId: id,
+      URL: url,
       Comments: comments,
+      Sentiment: overall,
     })
-      .then(() => {
-        console.log("Data added successfully!");
-      })
-      .catch((error) => {
-        console.error("Error adding data:", error);
-      });
+      .then(() => console.log("Data added successfully!"))
+      .catch((error) => console.error("Error adding data:", error));
   };
 
   return (
     <div className={`p-6 max-w-3xl mx-auto bg-white rounded-lg shadow-md ${styleHomePage.body}`}>
-
       <h1 className="text-2xl font-bold mb-4 text-center">YouTube Sentiment Analyzer</h1>
 
       <div className="mb-4">
@@ -161,13 +175,12 @@ export default function YouTubeSentimentAnalyzer() {
         </div>
       )}
 
-      {sentiment && percentages && (
+      {sentiment && (
         <div className="mt-6">
           <h2 className="text-xl font-bold">Sentiment Analysis:</h2>
-
-          <p><strong>Agree:</strong> {sentiment.agree_count} ({percentages.x}%)</p>
-          <p><strong>Disagree:</strong> {sentiment.disagree_count} ({percentages.y}%)</p>
-          <p><strong>Neutral:</strong> {sentiment.neutral_count} ({percentages.z}%)</p>
+          <p><strong>Agree:</strong> {sentiment.agree_count}</p>
+          <p><strong>Disagree:</strong> {sentiment.disagree_count}</p>
+          <p><strong>Neutral:</strong> {sentiment.neutral_count}</p>
         </div>
       )}
     </div>

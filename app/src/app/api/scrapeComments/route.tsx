@@ -1,7 +1,7 @@
-import puppeteer ,{ Page } from "puppeteer";
+import puppeteer from "puppeteer-core";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(req:NextRequest) {
+export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const videoUrl = searchParams.get("videoUrl");
 
@@ -12,40 +12,67 @@ export async function GET(req:NextRequest) {
     );
   }
 
+
   try {
-    // Launch Puppeteer
+    // Launch Puppeteer with puppeteer-core
     const browser = await puppeteer.launch({
-      headless: true, // Set to true for headless mode
+      headless: true,
+      executablePath: 'C:\\Users\\kulsh\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe', // Update this path based on your system
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--disable-gpu",
+        "--no-zygote",
+        "--single-process",
+      ],
     });
+
     const page = await browser.newPage();
 
+    // Set a timeout for the page
+    page.setDefaultNavigationTimeout(60000); // 60 seconds
+
+    // Optimize resource usage by blocking unnecessary requests
+    await page.setRequestInterception(true);
+    page.on("request", (request) => {
+      if (["image", "stylesheet", "font", "media"].includes(request.resourceType())) {
+        request.abort();
+      } else {
+        request.continue();
+      }
+    });
+
     // Navigate to the YouTube video URL
-    await page.goto(videoUrl, { waitUntil: "networkidle2" });
+    await page.goto(videoUrl, { waitUntil: "networkidle2", timeout: 60000 });
 
     // Wait for the comments section to load
-    await page.waitForSelector("ytd-comments");
+    await page.waitForSelector("ytd-comments", { timeout: 30000 });
 
-    // Scroll to load comments
+    // Scroll to load all comments
     await autoScroll(page);
 
     // Extract comments
-  
     const comments = await page.evaluate(() => {
       const commentNodes = document.querySelectorAll("#content-text");
-      return Array.from(commentNodes).map((node) => (node as HTMLElement).innerText.trim());
+      return Array.from(commentNodes).map((node) =>
+        (node as HTMLElement).innerText.trim()
+      );
     });
 
-    // Close the browser
-    await browser.close();
+    if (!comments.length) {
+      throw new Error("No comments found on the page.");
+    }
 
-    // Send the comments to the Flask API for sentiment analysis
+    // Send comments to Flask API for sentiment analysis
     const flaskApiUrl = "https://agrim25.pythonanywhere.com/analyze"; // Flask API endpoint
     const response = await fetch(flaskApiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(comments), // Send comments as JSON
+      body: JSON.stringify({ comments }),
     });
 
     if (!response.ok) {
@@ -61,7 +88,7 @@ export async function GET(req:NextRequest) {
     } else {
       console.error("An unknown error occurred:", error);
     }
-  
+
     return NextResponse.json(
       { error: "Failed to process comments or fetch sentiment analysis." },
       { status: 500 }
@@ -70,7 +97,7 @@ export async function GET(req:NextRequest) {
 }
 
 // Helper function to scroll the page
-async function autoScroll(page : Page) {
+async function autoScroll(page: any) {
   await page.evaluate(async () => {
     await new Promise<void>((resolve) => {
       let totalHeight = 0;

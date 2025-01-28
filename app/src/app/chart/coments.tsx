@@ -27,7 +27,8 @@ export default function CommentsOverview() {
     return <p>Loading...</p>;
   }
 
-  const totalComments = agreeCount + disagreeCount + neutralCount;
+  const totalComments = (agreeCount ?? 0) + (disagreeCount ?? 0) + (neutralCount ?? 0);
+
 
   const sentimentData = [
     { label: "Agree", count: agreeCount },

@@ -7,6 +7,12 @@ import styleHomePage from "./css/homePage.module.css"
 import { ref, set, push } from "firebase/database";
 import { database } from "../../utils/firebase";
 
+// Define Sentiment type
+type Sentiment = {
+  agree_count: number;
+  disagree_count: number;
+  neutral_count: number;
+};
 
 export default function YouTubeSentimentAnalyzer() {
   const router = useRouter(); // Initialize the router
@@ -28,11 +34,11 @@ export default function YouTubeSentimentAnalyzer() {
 
   const [videoUrl, setVideoUrl] = useState("");
   const [comments, setComments] = useState([]);
-  const [sentiment, setSentiment] = useState(null);
+  const [sentiment, setSentiment] = useState<Sentiment | null>(null); // Define sentiment type
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  function calcPercentage(x, y, z) {
+  function calcPercentage(x: number, y: number, z: number): { x: string; y: string; z: string } {
     let sum = x + y + z;
     let x_percentage = (x / sum) * 100 || 0;
     let y_percentage = (y / sum) * 100 || 0;
@@ -74,7 +80,7 @@ export default function YouTubeSentimentAnalyzer() {
         storeData("netural", data.overall.neutral_count);
         storeData("months", data.total_comments_monthly);
         console.log(getData("months"));
-        addData()
+        addData();
 
         // Debugging
         console.log(getData("agree"));
@@ -82,8 +88,7 @@ export default function YouTubeSentimentAnalyzer() {
 
         // Client-side redirection only
         if (isClient && data.overall) {
-            router.push("/result"); // Redirect to '/newPage' or any other path
-          
+          router.push("/result"); // Redirect to '/newPage' or any other path
         }
       } else {
         setError(data.error || "Failed to fetch comments.");
@@ -99,30 +104,25 @@ export default function YouTubeSentimentAnalyzer() {
     ? calcPercentage(sentiment.agree_count, sentiment.disagree_count, sentiment.neutral_count)
     : null;
 
-  // read and write in database 
- 
-
+  // read and write in database
   const addData = () => {
-    // Reference to the "Anchor" node in your database
     const dataRef = ref(database, "Anchor");
-  
-    // Generate a new unique key
+
     const newEntryRef = push(dataRef);
-  
-    // Set data with the desired structure
+
     set(newEntryRef, {
-      Agree: sentiment.agree_count,
-      Disagree: sentiment.disagree_count,
-      Netural: sentiment.neutral_count,
+      Agree: sentiment?.agree_count,
+      Disagree: sentiment?.disagree_count,
+      Netural: sentiment?.neutral_count,
       URL: videoUrl,
-      Comments:comments, 
+      Comments: comments,
     })
-    .then(() => {
-      console.log("Data added successfully!");
-    })
-    .catch((error) => {
-      console.error("Error adding data:", error);
-    });
+      .then(() => {
+        console.log("Data added successfully!");
+      })
+      .catch((error) => {
+        console.error("Error adding data:", error);
+      });
   };
 
   return (

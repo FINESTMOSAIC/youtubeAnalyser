@@ -5,6 +5,8 @@ import { Bar } from "react-chartjs-2";
 import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from "chart.js";
 import { storeData , removeData, getData } from "../../../utils/localstorage";
 import { useEffect ,useState } from "react";
+import { ChartOptions, ChartData } from "chart.js";
+
 
 // Register Chart.js components
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
@@ -12,7 +14,8 @@ ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
 export default function CommentDistribution() {
   const [loading, setLoading] = useState(false);
-  const [totalCommentsMonthly, setTotalCommentsMonthly] = useState({});
+  const [totalCommentsMonthly, setTotalCommentsMonthly] = useState<{ [key: string]: number }>({});
+
 
   useEffect(() => {
     try {
@@ -56,7 +59,7 @@ july === 0 && august === 0 && september === 0 && october === 0 && november === 0
 
 
 // export default function CommentDistribution() {
-  const data = {
+  const data : ChartData<"bar">= {
     labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun" , "Jul" ,"Aug" ,"Sept" ,"Oct", "Nov","Dec" ],
     datasets: [
       {
@@ -69,7 +72,7 @@ july === 0 && august === 0 && september === 0 && october === 0 && november === 0
     ],
   };
 
-  const options = {
+  const options : ChartOptions <"bar"> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -80,11 +83,13 @@ july === 0 && august === 0 && september === 0 && october === 0 && november === 0
     },
     scales: {
       x: {
+        type: "category",
         grid: {
           display: false,
         },
       },
       y: {
+        type: "linear", 
         beginAtZero: true,
         max:100,
         ticks:{
@@ -120,6 +125,7 @@ july === 0 && august === 0 && september === 0 && october === 0 && november === 0
      </div>
       ) : (
         <Bar data={data} options={options} />
+
       )}
       </div>
     </div>

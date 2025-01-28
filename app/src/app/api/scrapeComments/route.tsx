@@ -1,14 +1,13 @@
-import puppeteer from "puppeteer";
-import { NextRequest } from "next/server";
+import puppeteer ,{ Page } from "puppeteer";
+import { NextRequest, NextResponse } from "next/server";
 
-
-export async function GET(req: NextRequest) {
+export async function GET(req:NextRequest) {
   const { searchParams } = new URL(req.url);
   const videoUrl = searchParams.get("videoUrl");
 
   if (!videoUrl) {
-    return new Response(
-      JSON.stringify({ error: "Video URL is required" }),
+    return NextResponse.json(
+      { error: "Video URL is required" },
       { status: 400 }
     );
   }
@@ -30,9 +29,10 @@ export async function GET(req: NextRequest) {
     await autoScroll(page);
 
     // Extract comments
+  
     const comments = await page.evaluate(() => {
       const commentNodes = document.querySelectorAll("#content-text");
-      return Array.from(commentNodes).map((node) => node.innerText.trim());
+      return Array.from(commentNodes).map((node) => (node as HTMLElement).innerText.trim());
     });
 
     // Close the browser
@@ -54,23 +54,25 @@ export async function GET(req: NextRequest) {
 
     const sentimentData = await response.json();
 
-    return new Response(
-      JSON.stringify(sentimentData),
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error("Error scraping YouTube or calling Flask API:", error.message);
-    return new Response(
-      JSON.stringify({ error: "Failed to process comments or fetch sentiment analysis." }),
+    return NextResponse.json(sentimentData, { status: 200 });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error("Error scraping YouTube or calling Flask API:", error.message);
+    } else {
+      console.error("An unknown error occurred:", error);
+    }
+  
+    return NextResponse.json(
+      { error: "Failed to process comments or fetch sentiment analysis." },
       { status: 500 }
     );
   }
 }
 
 // Helper function to scroll the page
-async function autoScroll(page) {
+async function autoScroll(page : Page) {
   await page.evaluate(async () => {
-    await new Promise((resolve) => {
+    await new Promise<void>((resolve) => {
       let totalHeight = 0;
       const distance = 100;
       const timer = setInterval(() => {

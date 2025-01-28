@@ -1,4 +1,6 @@
 import puppeteer from "puppeteer";
+import { NextApiRequest } from "next";
+
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);

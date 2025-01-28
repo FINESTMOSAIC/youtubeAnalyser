@@ -114,8 +114,12 @@ export default function YouTubeSentimentAnalyzer() {
         setError(data.error || "Failed to fetch comments.");
       }
     } catch (err) {
-      setError("An unexpected error occurred.");
-      router.push("/result");
+      setError("API limit Reached.Failed to Load some Componets ");
+      setTimeout(() => {
+        
+        router.push("/result");
+      }, 1000);
+      
     } finally {
       setLoading(false);
     }

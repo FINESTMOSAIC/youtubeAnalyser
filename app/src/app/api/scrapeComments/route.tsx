@@ -2,8 +2,8 @@ import puppeteer from "puppeteer";
 import { NextApiRequest } from "next";
 
 
-export async function GET(req) {
-  const { searchParams } = new URL(req.url);
+export async function GET(req: NextApiRequest) {
+  const { searchParams } = new URL(req.url, `http://${req.headers.host}`);
   const videoUrl = searchParams.get("videoUrl");
 
   if (!videoUrl) {
